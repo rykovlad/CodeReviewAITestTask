@@ -1,14 +1,15 @@
 version: '3'
 
 services:
-#  api:
-#    build: .
-#    ports:
-#      - "8000:8000"
-#    env_file:
-#      - .env
-#    depends_on:
-#      - redis
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always  # Додаємо опцію автоматичного перезапуску
 
   redis:
     image: "redis:latest"
@@ -16,6 +17,8 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    restart: always  # Також додаємо для Redis
 
 volumes:
   redis-data:
+
