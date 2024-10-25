@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     REDIS_TIME_TO_STORE_CACHE = 60
     API_VERSION: str = "v1"
     CHAT_GPT_MODEL: str = "gpt-4-turbo"
+    TRASH_LIST: list[str] = ['poetry.lock']
 
     class Config:
         env_file =  os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")

@@ -31,7 +31,7 @@ Execute the following command in your terminal within the project directory:
 
 ```bash
 docker-compose up
-````
+```
 ### 6. Access the API Documentation
 Open your browser and navigate to:
 http://localhost:8000/docs

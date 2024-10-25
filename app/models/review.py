@@ -6,6 +6,12 @@ class ReviewRequest(BaseModel):
     github_repo_url: HttpUrl = Field(..., title="GitHub Repository URL", example="https://github.com/example/repo")
     candidate_level: Literal['Junior', 'Middle', 'Senior'] = Field(..., title="Candidate Level")
 
+    def dict(self, *args, **kwargs):
+        original_dict = super().dict(*args, **kwargs)
+        original_dict['github_repo_url'] = str(self.github_repo_url)
+        return original_dict
+
+
 class ReviewResponse(BaseModel):
     analyzed_files: list[str] = Field(..., title="Found and analyzed files", example=["main.py", "utils.py"])
     issues: list[dict] = Field(..., title="Downsides/Comments")

@@ -1,4 +1,6 @@
 import base64
+from importlib.metadata import files
+
 import httpx
 import json
 
@@ -22,6 +24,10 @@ async def get_repo_contents(api_url, headers):
     except HTTPException as e:
         logger.error("api_url = " + api_url)
         logger.error(e)
+        return []
+    except Exception as e:  # Загальна обробка всіх інших виключень
+        logger.error(f"An unexpected error occurred: {e}")
+        return []
 
 async def fetch_repo(github_repo_url: str) -> dict:
     """
@@ -41,10 +47,10 @@ async def fetch_repo(github_repo_url: str) -> dict:
     base_api_url = f"https://api.github.com/repos/{owner}/{repo}/contents"
     logger.info(f"Trying get {owner}`s repo named {repo}")
 
-    async def recursive_fetch_files(api_url, repo_data):
-        files = await get_repo_contents(api_url, headers)
+    async def recursive_fetch_files(api_url, data_from_repo):
+        _files = await get_repo_contents(api_url, headers)
 
-        for file in files:
+        for file in _files:
             if file['type'] == 'file':
                 file_content_url = file['url']
                 async with httpx.AsyncClient() as _client:
@@ -54,13 +60,13 @@ async def fetch_repo(github_repo_url: str) -> dict:
                     file_data = file_content_response.json()
                     content = base64.b64decode(file_data['content']).decode('utf-8')
                     logger.info(f"Successfully added {file['path']}")
-                    repo_data[file['path']] = content
+                    data_from_repo[file['path']] = content
                 else:
                     logger.error(f"Error getting file {file['path']}: {file_content_response.status_code}")
 
             elif file['type'] == 'dir':
                 dir_url = file['url']
-                await recursive_fetch_files(dir_url, repo_data)
+                await recursive_fetch_files(dir_url, data_from_repo)
 
     repo_data = {}
 
@@ -72,6 +78,15 @@ async def fetch_repo(github_repo_url: str) -> dict:
         repo_data = json.loads(cached_result)
     else:
         await recursive_fetch_files(base_api_url, repo_data)
+
+        fs_to_del = []
+        for f in repo_data:
+            if f in config.TRASH_LIST:
+                fs_to_del.append(f)
+
+        for f in fs_to_del:
+            del repo_data[f]
+
         redis_client.set(cache_key, json.dumps(repo_data), ex=config.REDIS_TIME_TO_STORE_CACHE)
 
     with open("last_repo.json", 'w', encoding='utf-8') as f:
