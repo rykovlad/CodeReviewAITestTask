@@ -8,10 +8,11 @@ from fastapi import HTTPException
 from openai import OpenAI, OpenAIError, RateLimitError, AuthenticationError, APIConnectionError
 
 from app.core.config import config
+from app.models.review import ReviewResponse
 
 client = OpenAI(api_key=config.OPENAI_API_KEY)
 
-async def analyze_code(assignment_description: str, repo_content: dict, candidate_level: str) -> dict:
+async def analyze_code(assignment_description: str, repo_content: dict, candidate_level: str) -> ReviewResponse:
     """
     Analyzes code based on the assignment description, repository content, and candidate level.
 
@@ -109,7 +110,7 @@ def generate_prompt(repo_content: dict, candidate_level: str, assignment_descrip
         ...
       ],
       "rating": "n/5 for a {candidate_level} level candidate",
-      "conclusion": "Final assessment of the code quality and areas for improvement and compliance with the assignment description",
+      "conclusion": "Final large assessment of the code quality and areas for improvement and compliance with the assignment description",
       "analyzed_files": ["file1.py", "file2.py", ...]
     }}
 
@@ -119,7 +120,7 @@ def generate_prompt(repo_content: dict, candidate_level: str, assignment_descrip
     """
 
 
-def extract_review_data(text: str) -> dict:
+def extract_review_data(text: str) -> ReviewResponse:
     """
     transform str answer to dict and save it locally(can be commented)
 
@@ -136,7 +137,12 @@ def extract_review_data(text: str) -> dict:
         with open("last_answer.json", 'w', encoding='utf-8') as f:
             json.dump(data_dict, f, ensure_ascii=False, indent=4)
 
-        return data_dict
+        return ReviewResponse(
+            analyzed_files=data_dict["analyzed_files"],
+            issues=data_dict["issues"],
+            rating=data_dict["rating"],
+            conclusion=data_dict["conclusion"]
+        )
 
     except json.JSONDecodeError as e:
         # Handle JSON decoding errors

@@ -1,6 +1,6 @@
 import base64
-
 import httpx
+
 from fastapi import HTTPException
 from loguru import logger
 
@@ -33,7 +33,7 @@ async def fetch_repo(github_repo_url: str) -> dict:
         "Authorization": f"token {config.GITHUB_API_KEY}"
     }
 
-    owner, repo = github_repo_url.split("/")[-2:]
+    owner, repo = str(github_repo_url).split("/")[-2:]
     repo = repo.replace(".git", "")
 
     base_api_url = f"https://api.github.com/repos/{owner}/{repo}/contents"

@@ -7,7 +7,7 @@ class ReviewRequest(BaseModel):
     candidate_level: Literal['Junior', 'Middle', 'Senior'] = Field(..., title="Candidate Level")
 
 class ReviewResponse(BaseModel):
-    found_files: list[str] = Field(..., title="Found Files", example=["main.py", "utils.py"])
-    downsides: list[str] = Field(..., title="Downsides/Comments", example=["Code duplication", "Inconsistent naming"])
-    rating: int = Field(..., title="Rating", ge=1, le=5, example=4)
+    analyzed_files: list[str] = Field(..., title="Found and analyzed files", example=["main.py", "utils.py"])
+    issues: list[dict] = Field(..., title="Downsides/Comments")
+    rating: str = Field(..., title="Rating", example="4/5 for a Junior level candidate")
     conclusion: str = Field(..., title="Conclusion", example="Good implementation but needs better structure")
