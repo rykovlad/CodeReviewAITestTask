@@ -1,0 +1,26 @@
+Part 2 - What If
+Now that you've built the Coding Assignment Auto-Review Tool prototype, let's think about scaling it. How would you
+architect the system to handle:
+- 100+ new review requests per minute?
+- large repositories with 100+ files in them?
+In a short paragraph, explain how you would handle this challenge. Discuss potential database, caching, and
+infrastructure solutions to handle high traffic and ensure system reliability. Additionally, address how you would
+manage increased usage of the OpenAl and GitHub APIs, considering rate limits and potential costs.
+
+-----------------------------------------------------------------------------------------------------------------------
+
+- 100+ new review requests per minute?
+копати в сторону мікросервісної архітектури, можливо рости горизонтально
+
+- large repositories with 100+ files in them?
+фактично проблемою є не кількість файлів, а об'єм коду. тут я одразу бачу 2 рішення: перше це одразу відсіювати
+"непотрібні" файли, такі як 'poetry.lock'. наприклад щось, що автоматично згенероване. друге рішення це трохи
+видозмінити запити до моделі ШІ, оформити перший запит і якщо ми не вкладаємось в певну кількість промптів, то
+розбивати запити на декілька запитів, передаючи попередню відповідь і просячи доповнити. перше я встиг реалізувати, але
+список треба доповнювати, друге не встиг(
+
+щодо кешування - вже реалізована система з редісом, тільки треба б визначити влучну кількість часу для очікування
+перед видаленням записів
+
+дякую за увагу, в будь-якому випадку буду радий почути/прочитати критику мого проєкту. тут ще є багато чого покращувати
+(навіть чатГПТ дає 3/5 йому), але я вжимався в короткі строки виконання

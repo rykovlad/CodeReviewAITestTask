@@ -9,7 +9,7 @@ services:
       - .env
     depends_on:
       - redis
-    restart: always  # Додаємо опцію автоматичного перезапуску
+    restart: always
 
   redis:
     image: "redis:latest"
@@ -17,7 +17,7 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
-    restart: always  # Також додаємо для Redis
+    restart: always
 
 volumes:
   redis-data:

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     GITHUB_API_KEY: str = Field("your secret key in .env", env="GITHUB_API_KEY")
 
     REDIS_URL: str = "redis://redis:6379/0"
-    REDIS_TIME_TO_STORE_CACHE = 60
+    REDIS_TIME_TO_STORE_CACHE = 60*60*2  # in seconds
     API_VERSION: str = "v1"
     CHAT_GPT_MODEL: str = "gpt-4-turbo"
     TRASH_LIST: list[str] = ['poetry.lock']
