@@ -31,7 +31,7 @@ async def analyze_code(assignment_description: str, repo_content: dict, candidat
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model=config.CHAT_GPT_MODEL,
             messages=[
                 {"role": "system", "content": "You are a code reviewer"},
                 {"role": "user", "content": prompt}
@@ -91,8 +91,9 @@ def generate_prompt(repo_content: dict, candidate_level: str, assignment_descrip
     - 'issues': A list of specific issues found in the code in format dictionary with "file" and  "description" keys, 
     also "file" value is str of filename, and "description" value is list of str of issues and number of line with that issue
     - 'rating': A rating of the candidate's performance (e.g., 1-5 or a detailed textual description) in forman "n/5"
-    - 'conclusion': A final assessment of the code quality, areas for improvement and compliance with the assignment description
-    - 'analyzed_files': List of **all** files in promt
+    - 'conclusion': A final assessment of the code quality, areas for improvement, suggest improvements and compliance 
+    with the assignment description 
+    - 'analyzed_files': List of **all** files in prompt
     
     Provide a **strict JSON** response. **Do not** include any additional text or explanations, only return the JSON object.
 
