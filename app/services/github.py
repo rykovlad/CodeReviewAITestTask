@@ -1,10 +1,12 @@
 import base64
 import httpx
+import json
 
 from fastapi import HTTPException
 from loguru import logger
 
 from app.core.config import config
+from app.core.redis_client import redis_client
 
 
 async def get_repo_contents(api_url, headers):
@@ -15,7 +17,7 @@ async def get_repo_contents(api_url, headers):
 
         if response.status_code != 200:
             logger.error(f"Error: {response.status_code}")
-            return None
+            raise Exception(f"Error: {response.status_code}, something wrong with repo url")
         return response.json()
     except HTTPException as e:
         logger.error("api_url = " + api_url)
@@ -61,10 +63,18 @@ async def fetch_repo(github_repo_url: str) -> dict:
                 await recursive_fetch_files(dir_url, repo_data)
 
     repo_data = {}
-    await recursive_fetch_files(base_api_url, repo_data)
+
+    cache_key = f"repo:{owner}:{repo}"
+
+    cached_result = redis_client.get(cache_key)
+    if cached_result:
+        logger.success("repo load from cache")
+        repo_data = json.loads(cached_result)
+    else:
+        await recursive_fetch_files(base_api_url, repo_data)
+        redis_client.set(cache_key, json.dumps(repo_data), ex=config.REDIS_TIME_TO_STORE_CACHE)
 
     with open("last_repo.json", 'w', encoding='utf-8') as f:
-        import json
         json.dump(repo_data, f, ensure_ascii=False, indent=4)
 
     return repo_data

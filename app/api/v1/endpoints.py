@@ -21,6 +21,6 @@ async def review_code(review_request: ReviewRequest):
 
     try:
         review = await analyze_code(review_request.assignment_description, repo_content, review_request.candidate_level)
-        return {"result": review}
+        return review
     except Exception as e:
         raise HTTPException(status_code=500, detail="Problem with openAI\n" + str(e))

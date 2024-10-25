@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from openai import OpenAI, OpenAIError, RateLimitError, AuthenticationError, APIConnectionError
 
 from app.core.config import config
+from app.core.redis_client import redis_client
 from app.models.review import ReviewResponse
 
 client = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -29,6 +30,13 @@ async def analyze_code(assignment_description: str, repo_content: dict, candidat
     """
     prompt = generate_prompt(repo_content, candidate_level, assignment_description)
 
+    cache_key = f"review:{candidate_level}:{assignment_description}"
+
+    cached_result = redis_client.get(cache_key)
+    if cached_result:
+        logger.success(f"{cache_key} load from cache")
+        return ReviewResponse(**json.loads(cached_result))
+
     try:
         response = client.chat.completions.create(
             model=config.CHAT_GPT_MODEL,
@@ -40,9 +48,11 @@ async def analyze_code(assignment_description: str, repo_content: dict, candidat
         logger.info(response)
 
         answer = response.choices[0].message.content
-        logger.info(answer)
+        logger.success(answer)
 
-        return extract_review_data(answer)
+        result = extract_review_data(answer)
+        redis_client.set(cache_key, result.model_dump_json(), ex=config.REDIS_TIME_TO_STORE_CACHE)
+        return result
 
     except AttributeError as e:
         logger.error(f"Attribute error: {str(e)}")
@@ -133,7 +143,6 @@ def extract_review_data(text: str) -> ReviewResponse:
             text = text[8:-3]
 
         data_dict = json.loads(text)
-        pprint(data_dict)
 
         with open("last_answer.json", 'w', encoding='utf-8') as f:
             json.dump(data_dict, f, ensure_ascii=False, indent=4)
