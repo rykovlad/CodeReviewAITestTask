@@ -22,6 +22,13 @@ async def get_repo_contents(api_url, headers):
         logger.error(e)
 
 async def fetch_repo(github_repo_url: str) -> dict:
+    """
+        Fetches the contents of a GitHub repository recursively, including both files and directories.
+        Also add files in .json file for debug, can be removed if necessary
+
+        :param github_repo_url: The URL of the GitHub repository to fetch.
+        :return: A dictionary with the file paths as keys and file contents as values.
+        """
     headers = {
         "Authorization": f"token {config.GITHUB_API_KEY}"
     }
@@ -61,30 +68,3 @@ async def fetch_repo(github_repo_url: str) -> dict:
         json.dump(repo_data, f, ensure_ascii=False, indent=4)
 
     return repo_data
-
-async def fetch_repo_json(github_repo_url: str) -> dict:
-    '''
-    test function just to write other code without fetching repo from git
-
-    :param github_repo_url: no sense
-    :return:
-    '''
-    import os
-    # file_path = "/last_repo.json"
-    file_path = os.path.join(os.path.dirname(__file__), "last_repo.json")
-    import json
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return data
-    except FileNotFoundError:
-        print(f"Файл {file_path} не знайдено.")
-        return None
-    except json.JSONDecodeError:
-        print(f"Помилка декодування JSON у файлі {file_path}.")
-        return None
-
-
-if __name__ == '__main__':
-    import asyncio
-    asyncio.run(fetch_repo("https://github.com/SAYREKAS/CodeReviewAITool.git"))

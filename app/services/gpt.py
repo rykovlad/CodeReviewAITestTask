@@ -2,55 +2,85 @@ import json
 
 from pprint import pprint
 
-from fastapi import HTTPException
-from openai import OpenAI
-from starlette.responses import PlainTextResponse
+from loguru import logger
 
-from app.services.github import fetch_repo_json
+from fastapi import HTTPException
+from openai import OpenAI, OpenAIError, RateLimitError, AuthenticationError, APIConnectionError
+
 from app.core.config import config
 
 client = OpenAI(api_key=config.OPENAI_API_KEY)
 
 async def analyze_code(assignment_description: str, repo_content: dict, candidate_level: str) -> dict:
+    """
+    Analyzes code based on the assignment description, repository content, and candidate level.
+
+    The function generates a prompt for code analysis, sends it to the GPT model via API to review the code and
+    provide feedback.
+    It processes the response and returns the result in a dictionary format containing identified issues and the
+    candidate's evaluation.
+
+    :param assignment_description: A description of the task the candidate is expected to complete (str).
+    :param repo_content: A dictionary where keys are file names and values are the content of those files (dict).
+    :param candidate_level: The experience level of the candidate (e.g., junior, mid, senior) (str).
+
+    :return: A dictionary with the analysis results, including issues and the candidate's performance rating.
+    """
     prompt = generate_prompt(repo_content, candidate_level, assignment_description)
 
-    # import tiktoken
-    #
-    # def count_tokens(_text: str, model: str = "gpt-4") -> int:
-    #     encoding = tiktoken.encoding_for_model(model)
-    #     tokens = encoding.encode(_text)
-    #     return len(tokens)
-    #
-    # tokens_count = count_tokens(prompt)
-    # print(f"Number of tokens: {tokens_count}")
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": "You are a code reviewer"},
+                {"role": "user", "content": prompt}
+            ],
+        )
+        logger.info(response)
 
-    # try:
-    response = client.chat.completions.create(
-        model="gpt-4-turbo",
-        # model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a code reviewer"},
-            {"role": "user", "content": prompt}
-            # {"role": "user", "content": "print(10)"}
-        ],
-    )
-    pprint(response)
-    answer = response.choices[0].message.content
+        answer = response.choices[0].message.content
+        logger.info(answer)
 
-    print(answer)
+        return extract_review_data(answer)
 
-    return extract_review_data(answer)
+    except AttributeError as e:
+        logger.error(f"Attribute error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Malformed response structure from OpenAI API.")
 
-    # except Exception as e:
-    #     print(e)
-    #     raise HTTPException(status_code=500, detail="Failed to analyze the code")
+    except AuthenticationError as e:
+        logger.error(f"Authentication error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid OpenAI API credentials")
 
+    except RateLimitError as e:
+        logger.error(f"Rate limit error: {str(e)}")
+        raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. Please try again later.")
+
+    except APIConnectionError as e:
+        logger.error(f"API connection error: {str(e)}")
+        raise HTTPException(status_code=503, detail="Failed to connect to OpenAI API. Please check your network.")
+
+    except OpenAIError as e:
+        # Catch any other OpenAI-related errors
+        logger.error(f"OpenAI error: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while processing the code analysis.")
+
+    # General exception handling
+    except Exception as e:
+        logger.error(f"General error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to analyze the code")
 
 
 def generate_prompt(repo_content: dict, candidate_level: str, assignment_description: str) -> str:
+    """
+    Generate prompt with your params
+
+    :param repo_content: dict {"filename.py": "print(code)"}
+    :param candidate_level: Junior, Middle or Senior levels
+    :param assignment_description:  a brief description of the project
+    :return: full text of prompt
+    """
     files = ''
     for file_name, file in repo_content.items():
-        print(file_name)
         files += file_name + ":\n"
         files += file + "\n"
 
@@ -60,8 +90,8 @@ def generate_prompt(repo_content: dict, candidate_level: str, assignment_descrip
     - 'issues': A list of specific issues found in the code in format dictionary with "file" and  "description" keys, 
     also "file" value is str of filename, and "description" value is list of str of issues and number of line with that issue
     - 'rating': A rating of the candidate's performance (e.g., 1-5 or a detailed textual description) in forman "n/5"
-    - 'conclusion': A final assessment of the code quality, areas for improvement and and compliance with the assignment description
-    - 'analyzed_files': List of all files in promt
+    - 'conclusion': A final assessment of the code quality, areas for improvement and compliance with the assignment description
+    - 'analyzed_files': List of **all** files in promt
     
     Provide a **strict JSON** response. **Do not** include any additional text or explanations, only return the JSON object.
 
@@ -78,46 +108,47 @@ def generate_prompt(repo_content: dict, candidate_level: str, assignment_descrip
         }},
         ...
       ],
-      "rating": "n/5",
-      "conclusion": "Final assessment of the code quality and areas for improvement",
+      "rating": "n/5 for a {candidate_level} level candidate",
+      "conclusion": "Final assessment of the code quality and areas for improvement and compliance with the assignment description",
       "analyzed_files": ["file1.py", "file2.py", ...]
     }}
 
-    
     Project:
     
     {files}    
     """
 
 
-# Функція для обробки результатів з OpenAI
 def extract_review_data(text: str) -> dict:
-    if text[:8]=="```json\n" and text[-3:]=="```":
-        text = text[8:-3]
+    """
+    transform str answer to dict and save it locally(can be commented)
 
-    data_dict = json.loads(text)
-    pprint(data_dict)
+    :param text: answer from openai API
+    :return: answer in dict format
+    """
+    try:
+        if text[:8]=="```json\n" and text[-3:]=="```":
+            text = text[8:-3]
 
-    with open("last_answer.json", 'w', encoding='utf-8') as f:
-        json.dump(data_dict, f, ensure_ascii=False, indent=4)
+        data_dict = json.loads(text)
+        pprint(data_dict)
 
-    return data_dict
+        with open("last_answer.json", 'w', encoding='utf-8') as f:
+            json.dump(data_dict, f, ensure_ascii=False, indent=4)
 
+        return data_dict
 
-if __name__ == '__main__':
-    async def review_code(assignment_description: str = "",
-                    github_repo_url: str = "https://github.com/rykovlad/test_task_204.git",
-                    candidate_level: str = "Junior"):
-        try:
-            repo_content = await fetch_repo_json(github_repo_url)  # switch to fetch_repo() for real tests
+    except json.JSONDecodeError as e:
+        # Handle JSON decoding errors
+        logger.error(f"JSON decoding error: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid JSON format received.")
 
-            review = await analyze_code(assignment_description, repo_content, candidate_level)
+    except TypeError as e:
+        # Handle TypeErrors, such as if the input is not a string
+        logger.error(f"Type error: {str(e)}")
+        raise HTTPException(status_code=400, detail="Input data is not a valid string.")
 
-            return {"result": review}
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-
-
-    import asyncio
-    asyncio.run(review_code())
+    except Exception as e:
+        # Catch any other exceptions
+        logger.error(f"General error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to process the response.")
